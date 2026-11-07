@@ -1367,6 +1367,27 @@
             <input type="password" id="sec-new-pass" class="adm-input" placeholder="Минимум 4 символа">
           </div>
           <button type="button" class="adm-btn" id="update-credentials-btn" style="width:100%;">Обновить логин и пароль</button>
+
+          <div class="drawer-section-title" style="margin-top:20px;">☁ Публикация на GitHub Pages</div>
+          <p style="font-size:0.73rem;color:var(--adm-muted);margin-bottom:10px;line-height:1.45;">
+            Так как GitHub Pages — это статический хостинг без сервера Node.js, для прямого сохранения изменений на сайт укажите ваш <b>GitHub Personal Access Token</b> (с правом <code>repo</code> / <code>Contents: Read &amp; write</code>) или скачайте обновленный <code>site.json</code>.
+          </p>
+          <div class="adm-field">
+            <label>Репозиторий (owner/repo)</label>
+            <input type="text" id="gh-repo-input" class="adm-input" placeholder="username/repository">
+          </div>
+          <div class="adm-field">
+            <label>Ветка (branch)</label>
+            <input type="text" id="gh-branch-input" class="adm-input" placeholder="main">
+          </div>
+          <div class="adm-field">
+            <label>GitHub Token (хранится только в вашем браузере)</label>
+            <input type="password" id="gh-token-input" class="adm-input" placeholder="ghp_... или github_pat_...">
+          </div>
+          <div style="display:flex;gap:6px;">
+            <button type="button" class="adm-btn adm-btn-primary" id="save-gh-config-btn" style="flex:1;">Сохранить токен</button>
+            <button type="button" class="adm-btn" id="download-site-json-btn" title="Скачать готовый файл data/site.json">⬇ site.json</button>
+          </div>
         </div>
 
         <!-- TAB 4: MEDIA LIBRARY -->
@@ -1414,7 +1435,7 @@
 
   <div class="studio-toast" id="studio-toast">Сохранено</div>
 
-  <script src="js/default-data.js?v=4"></script>
-  <script src="js/admin.js?v=4"></script>
+  <script src="js/default-data.js?v=5"></script>
+  <script src="js/admin.js?v=5"></script>
 </body>
 </html>

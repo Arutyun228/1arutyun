@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>1arutyun</title>
+  <script>
+    (function () {
+      var loc = window.location;
+      var path = loc.pathname || "/";
+      var isGhPages = /\.github\.io$/i.test(loc.hostname);
+      var segments = path.split("/").filter(Boolean);
+      var basePath = "";
+
+      if (isGhPages && segments.length > 0) {
+        var first = segments[0].toLowerCase();
+        var knownRoutes = ["admin", "admin.html", "index.html", "release", "videos", "thoughts", "page"];
+        if (knownRoutes.indexOf(first) === -1) {
+          basePath = "/" + segments[0];
+        }
+      }
+
+      var relPath = basePath && path.indexOf(basePath) === 0 ? path.slice(basePath.length) || "/" : path;
+
+      if (/^\/admin\/?$/i.test(relPath)) {
+        loc.replace(basePath + "/admin.html" + loc.search + loc.hash);
+        return;
+      }
+
+      sessionStorage.setItem("1arutyun_gh_spa_redirect", relPath + loc.search + loc.hash);
+      loc.replace((basePath || "") + "/" + loc.search + loc.hash);
+    })();
+  </script>
+</head>
+<body></body>
+</html>

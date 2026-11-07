@@ -11,6 +11,52 @@
   localStorage.removeItem("1arutyun_lang_v3");
   localStorage.removeItem("1arutyun_theme");
 
+  const BASE_PATH = (function () {
+    const path = window.location.pathname || "/";
+    const segments = path.split("/").filter(Boolean);
+    if (/\.github\.io$/i.test(window.location.hostname) && segments.length > 0) {
+      const first = segments[0].toLowerCase();
+      const known = ["admin", "admin.html", "index.html", "release", "videos", "thoughts", "page"];
+      if (!known.includes(first)) {
+        return "/" + segments[0];
+      }
+    }
+    return "";
+  })();
+
+  function resolveUrl(url) {
+    if (!url) return "";
+    const s = String(url);
+    if (/^(https?:|data:|blob:|mailto:|tel:)/i.test(s)) return s;
+    if (BASE_PATH && s.startsWith("/") && !s.startsWith(BASE_PATH + "/") && s !== BASE_PATH) {
+      return BASE_PATH + (s === "/" ? "/" : s);
+    }
+    return s;
+  }
+
+  function fixSubpathAssets(container = document) {
+    if (!BASE_PATH) return;
+    container.querySelectorAll("img[src^='/'], video[src^='/'], source[src^='/']").forEach((el) => {
+      const raw = el.getAttribute("src");
+      if (raw && raw.startsWith("/") && !raw.startsWith(BASE_PATH + "/")) {
+        el.setAttribute("src", BASE_PATH + raw);
+      }
+    });
+    container.querySelectorAll("video[poster^='/']").forEach((el) => {
+      const raw = el.getAttribute("poster");
+      if (raw && raw.startsWith("/") && !raw.startsWith(BASE_PATH + "/")) {
+        el.setAttribute("poster", BASE_PATH + raw);
+      }
+    });
+    container.querySelectorAll("[style*=\"url('/\"]").forEach((el) => {
+      const st = el.getAttribute("style") || "";
+      el.setAttribute("style", st.replace(/url\(['"]?(\/(?!\/)[^'")]+)['"]?\)/g, (m, p1) => {
+        if (p1.startsWith(BASE_PATH + "/")) return m;
+        return `url('${BASE_PATH}${p1}')`;
+      }));
+    });
+  }
+
   const state = {
     siteData: window.DEFAULT_SITE_DATA || {},
     lang: "en",
@@ -1021,8 +1067,14 @@
   let isRestoringScroll = false;
 
   function normalizePath(p) {
-    if (!p || p === "/") return "/";
-    return p.replace(/\/$/, "");
+    if (!p) return "/";
+    let clean = String(p);
+    if (BASE_PATH && clean.startsWith(BASE_PATH)) {
+      clean = clean.slice(BASE_PATH.length) || "/";
+    }
+    clean = clean.replace(/\/index\.html$/i, "") || "/";
+    if (clean === "/") return "/";
+    return clean.replace(/\/$/, "");
   }
 
   function saveScrollPosition(path = window.location.pathname) {
@@ -1048,15 +1100,15 @@
   }
 
   function getRoute() {
-    const path = window.location.pathname || "/";
+    const path = normalizePath(window.location.pathname);
     if (path.startsWith("/release/")) {
       return { view: "release", slug: decodeURIComponent(path.replace("/release/", "").replace(/\/$/, "")) };
     }
     if (path.startsWith("/page/")) {
       return { view: "page", slug: decodeURIComponent(path.replace("/page/", "").replace(/\/$/, "")) };
     }
-    if (path === "/videos" || path === "/videos/") return { view: "videos" };
-    if (path === "/thoughts" || path === "/thoughts/") return { view: "thoughts" };
+    if (path === "/videos") return { view: "videos" };
+    if (path === "/thoughts") return { view: "thoughts" };
     return { view: "main" };
   }
 
@@ -1088,6 +1140,7 @@
       root.innerHTML = renderMainPage();
     }
 
+    fixSubpathAssets(document);
     bind3DCoverTilt(root);
 
     if (options.preserveScroll) {
@@ -1111,18 +1164,46 @@
       renderCurrentRoute({ preserveScroll: true });
       return;
     }
-    window.history.pushState({ path: url }, "", url);
+    const pushUrl = resolveUrl(toPath);
+    window.history.pushState({ path: toPath }, "", pushUrl);
     renderCurrentRoute({ restoreScroll: true });
   }
 
   async function init() {
+    // Restore SPA route redirected by 404.html on GitHub Pages
+    const ghRedirect = sessionStorage.getItem("1arutyun_gh_spa_redirect");
+    if (ghRedirect) {
+      sessionStorage.removeItem("1arutyun_gh_spa_redirect");
+      const targetUrl = resolveUrl(ghRedirect.startsWith("/") ? ghRedirect : "/" + ghRedirect);
+      window.history.replaceState(null, "", targetUrl);
+    }
+
+    let loaded = false;
     try {
-      const res = await fetch(`/api/site?t=${Date.now()}`, { cache: "no-store" });
-      if (res.ok) {
+      const res = await fetch(resolveUrl(`/api/site?t=${Date.now()}`), { cache: "no-store" });
+      const ct = (res.headers.get("content-type") || "").toLowerCase();
+      if (res.ok && ct.includes("application/json")) {
         state.siteData = await res.json();
+        loaded = true;
       }
-    } catch (e) {
-      // Uses fallback window.DEFAULT_SITE_DATA
+    } catch (e) {}
+
+    if (!loaded) {
+      try {
+        const resJson = await fetch(resolveUrl(`/data/site.json?t=${Date.now()}`), { cache: "no-store" });
+        if (resJson.ok) {
+          state.siteData = await resJson.json();
+          loaded = true;
+        }
+      } catch (e) {}
+    }
+
+    // If edited locally in static/GitHub Pages mode in this browser, apply local draft if newer
+    const localDraft = localStorage.getItem("1arutyun_local_site_draft");
+    if (!loaded && localDraft) {
+      try {
+        state.siteData = JSON.parse(localDraft);
+      } catch (e) {}
     }
 
     state.lang = "en";
@@ -1207,10 +1288,14 @@
     });
 
     // Secret Owner Shortcuts to /admin (Requirement #1: No visible Admin button)
+    const goToAdmin = () => {
+      window.location.href = resolveUrl("/admin.html");
+    };
+
     window.addEventListener("keydown", (e) => {
       if (e.ctrlKey && e.shiftKey && (e.key === "A" || e.key === "a" || e.key === "Ф" || e.key === "ф")) {
         e.preventDefault();
-        window.location.href = "/admin";
+        goToAdmin();
       }
     });
 
@@ -1223,7 +1308,7 @@
         clearTimeout(copyTimer);
         if (copyClicks >= 3) {
           copyClicks = 0;
-          window.location.href = "/admin";
+          goToAdmin();
         } else {
           copyTimer = setTimeout(() => {
             copyClicks = 0;

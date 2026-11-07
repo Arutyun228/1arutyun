@@ -12,8 +12,108 @@
 (function () {
   "use strict";
 
+  const BASE_PATH = (function () {
+    const path = window.location.pathname || "/";
+    const segments = path.split("/").filter(Boolean);
+    if (/\.github\.io$/i.test(window.location.hostname) && segments.length > 0) {
+      const first = segments[0].toLowerCase();
+      const known = ["admin", "admin.html", "index.html", "release", "videos", "thoughts", "page"];
+      if (!known.includes(first)) {
+        return "/" + segments[0];
+      }
+    }
+    return "";
+  })();
+
+  function resolveUrl(url) {
+    if (!url) return "";
+    const s = String(url);
+    if (/^(https?:|data:|blob:|mailto:|tel:)/i.test(s)) return s;
+    if (BASE_PATH && s.startsWith("/") && !s.startsWith(BASE_PATH + "/") && s !== BASE_PATH) {
+      return BASE_PATH + (s === "/" ? "/" : s);
+    }
+    return s;
+  }
+
+  function fixSubpathAssets(container = document) {
+    if (!BASE_PATH) return;
+    container.querySelectorAll("img[src^='/'], video[src^='/'], source[src^='/']").forEach((el) => {
+      const raw = el.getAttribute("src");
+      if (raw && raw.startsWith("/") && !raw.startsWith(BASE_PATH + "/")) {
+        el.setAttribute("src", BASE_PATH + raw);
+      }
+    });
+    container.querySelectorAll("video[poster^='/']").forEach((el) => {
+      const raw = el.getAttribute("poster");
+      if (raw && raw.startsWith("/") && !raw.startsWith(BASE_PATH + "/")) {
+        el.setAttribute("poster", BASE_PATH + raw);
+      }
+    });
+    container.querySelectorAll("[style*=\"url('/\"]").forEach((el) => {
+      const st = el.getAttribute("style") || "";
+      el.setAttribute("style", st.replace(/url\(['"]?(\/(?!\/)[^'")]+)['"]?\)/g, (m, p1) => {
+        if (p1.startsWith(BASE_PATH + "/")) return m;
+        return `url('${BASE_PATH}${p1}')`;
+      }));
+    });
+  }
+
+  function detectDefaultGithubRepo() {
+    const saved = localStorage.getItem("1arutyun_gh_repo");
+    if (saved) return saved;
+    const host = window.location.hostname || "";
+    if (/\.github\.io$/i.test(host)) {
+      const owner = host.replace(/\.github\.io$/i, "");
+      const repo = BASE_PATH ? BASE_PATH.slice(1) : `${owner}.github.io`;
+      return `${owner}/${repo}`;
+    }
+    return "";
+  }
+
+  async function hmacSha256Hex(message, secret = "1arutyun_salt_v2") {
+    const enc = new TextEncoder();
+    const key = await window.crypto.subtle.importKey(
+      "raw",
+      enc.encode(secret),
+      { name: "HMAC", hash: "SHA-256" },
+      false,
+      ["sign"]
+    );
+    const sig = await window.crypto.subtle.sign("HMAC", key, enc.encode(String(message)));
+    return Array.from(new Uint8Array(sig))
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
+  }
+
+  async function verifyStaticLogin(username, password) {
+    let expectedUser = "admin";
+    let expectedHash = "5c7f5c0dacd432f1ad03237246b6845e66ae76eed3759a3485d1323e95986c11"; // "1arutyun2026"
+    const customAuth = localStorage.getItem("1arutyun_local_auth_override");
+    if (customAuth) {
+      try {
+        const parsed = JSON.parse(customAuth);
+        if (parsed.username && parsed.passwordHash) {
+          expectedUser = parsed.username;
+          expectedHash = parsed.passwordHash;
+        }
+      } catch (e) {}
+    } else {
+      try {
+        const res = await fetch(resolveUrl(`/data/auth.json?t=${Date.now()}`), { cache: "no-store" });
+        if (res.ok) {
+          const cfg = await res.json();
+          if (cfg.username) expectedUser = cfg.username;
+          if (cfg.passwordHash) expectedHash = cfg.passwordHash;
+        }
+      } catch (e) {}
+    }
+    const inputHash = await hmacSha256Hex(password, "1arutyun_salt_v2");
+    return username === expectedUser && inputHash === expectedHash;
+  }
+
   const state = {
     token: localStorage.getItem("1arutyun_admin_token") || "",
+    isStaticHost: false,
     siteData: JSON.parse(JSON.stringify(window.DEFAULT_SITE_DATA || {})),
     currentPage: "main", // "main" | "release:<slug>" | "page:<slug>" | "videos" | "thoughts"
     editLang: "en",
@@ -1370,6 +1470,7 @@
         </div>
       `;
     }
+    fixSubpathAssets(paper);
   }
 
   /* ==========================================================================
@@ -1486,14 +1587,37 @@
   /* ==========================================================================
      MEDIA LIBRARY & UPLOADER
      ========================================================================== */
+  const BUILTIN_ASSETS = [
+    { name: "header_banner.jpg", url: "/assets/header_banner.jpg", type: "image", deletable: false },
+    { name: "undefined_album_cover.jpg", url: "/assets/undefined_album_cover.jpg", type: "image", deletable: false },
+    { name: "art_photo.jpg", url: "/assets/art_photo.jpg", type: "image", deletable: false },
+    { name: "logo_or_avatar.jpg", url: "/assets/logo_or_avatar.jpg", type: "image", deletable: false },
+    { name: "main_art1.jpg", url: "/assets/main_art1.jpg", type: "image", deletable: false },
+    { name: "music_art.jpg", url: "/assets/music_art.jpg", type: "image", deletable: false },
+    { name: "release_img1.jpg", url: "/assets/release_img1.jpg", type: "image", deletable: false },
+    { name: "spotify_cover.jpg", url: "/assets/spotify_cover.jpg", type: "image", deletable: false },
+    { name: "yt_oh_no.jpg", url: "/assets/yt_oh_no.jpg", type: "image", deletable: false },
+    { name: "yt_amena.jpg", url: "/assets/yt_amena.jpg", type: "image", deletable: false },
+    { name: "yt_fear_the_dark.jpg", url: "/assets/yt_fear_the_dark.jpg", type: "image", deletable: false }
+  ];
+
   async function loadMediaLibrary() {
-    try {
-      const res = await fetch("/api/media");
-      if (res.ok) {
-        const data = await res.json();
-        state.mediaFiles = data.files || [];
-      }
-    } catch (e) {}
+    let loaded = false;
+    if (!state.isStaticHost) {
+      try {
+        const res = await fetch(resolveUrl("/api/media"));
+        const ct = (res.headers.get("content-type") || "").toLowerCase();
+        if (res.ok && ct.includes("application/json")) {
+          const data = await res.json();
+          state.mediaFiles = data.files || [];
+          loaded = true;
+        }
+      } catch (e) {}
+    }
+    if (!loaded) {
+      const extraMedia = JSON.parse(localStorage.getItem("1arutyun_gh_uploaded_media") || "[]");
+      state.mediaFiles = [...extraMedia, ...BUILTIN_ASSETS];
+    }
     renderMediaGrids();
   }
 
@@ -1505,8 +1629,8 @@
         <div class="media-item">
           ${
             f.type === "video"
-              ? `<video src="${escapeHtml(f.url)}" class="media-thumb" muted preload="metadata"></video>`
-              : `<img src="${escapeHtml(f.url)}" class="media-thumb" alt="">`
+              ? `<video src="${escapeHtml(resolveUrl(f.url))}" class="media-thumb" muted preload="metadata"></video>`
+              : `<img src="${escapeHtml(resolveUrl(f.url))}" class="media-thumb" alt="">`
           }
           <div class="media-meta">
             <button type="button" class="adm-btn adm-btn-sm" style="flex:1;" data-select-media="${escapeHtml(f.url)}">
@@ -1529,26 +1653,138 @@
     if (modalGrid) modalGrid.innerHTML = renderItems(true);
   }
 
+  function arrayBufferToBase64(buffer) {
+    let binary = "";
+    const bytes = new Uint8Array(buffer);
+    const chunk = 0x8000;
+    for (let i = 0; i < bytes.length; i += chunk) {
+      binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
+    }
+    return btoa(binary);
+  }
+
+  function utf8ToBase64(str) {
+    return arrayBufferToBase64(new TextEncoder().encode(str));
+  }
+
+  async function pushFileToGithub(repoPath, base64Content, commitMsg) {
+    const token = (localStorage.getItem("1arutyun_gh_token") || "").trim();
+    const repo = (localStorage.getItem("1arutyun_gh_repo") || detectDefaultGithubRepo()).trim();
+    const branch = (localStorage.getItem("1arutyun_gh_branch") || "main").trim();
+    if (!token || !repo) {
+      throw new Error("NO_GH_TOKEN");
+    }
+    const apiUrl = `https://api.github.com/repos/${repo}/contents/${repoPath}`;
+    let sha = null;
+    try {
+      const getRes = await fetch(`${apiUrl}?ref=${encodeURIComponent(branch)}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: "application/vnd.github+json"
+        }
+      });
+      if (getRes.ok) {
+        const existing = await getRes.json();
+        sha = existing.sha || null;
+      }
+    } catch (e) {}
+
+    const body = {
+      message: commitMsg || `Update ${repoPath} via 1arutyun Studio`,
+      content: base64Content,
+      branch
+    };
+    if (sha) body.sha = sha;
+
+    const putRes = await fetch(apiUrl, {
+      method: "PUT",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: "application/vnd.github+json",
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(body)
+    });
+    if (!putRes.ok) {
+      const errData = await putRes.json().catch(() => ({}));
+      throw new Error(errData.message || `GitHub API Error ${putRes.status}`);
+    }
+    return putRes.json();
+  }
+
+  function downloadSiteJson() {
+    const jsonStr = JSON.stringify(state.siteData, null, 2);
+    const blob = new Blob([jsonStr], { type: "application/json;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "site.json";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    showToast("⬇ Файл site.json скачан (замените data/site.json в репозитории)");
+  }
+
   async function uploadFiles(fileList) {
     if (!fileList || !fileList.length) return null;
     let lastUploadedUrl = null;
     for (const file of fileList) {
       showToast(`Загрузка ${file.name}...`);
-      const res = await fetch("/api/upload", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${state.token}`,
-          "X-File-Name": encodeURIComponent(file.name)
-        },
-        body: file
-      });
-      if (res.ok) {
-        const data = await res.json();
-        lastUploadedUrl = data.url;
+      if (!state.isStaticHost) {
+        try {
+          const res = await fetch(resolveUrl("/api/upload"), {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${state.token}`,
+              "X-File-Name": encodeURIComponent(file.name)
+            },
+            body: file
+          });
+          const ct = (res.headers.get("content-type") || "").toLowerCase();
+          if (res.ok && ct.includes("application/json")) {
+            const data = await res.json();
+            lastUploadedUrl = data.url;
+            continue;
+          }
+          state.isStaticHost = true;
+        } catch (e) {
+          state.isStaticHost = true;
+        }
+      }
+
+      // Static / GitHub Pages upload fallback
+      const safeName = `${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
+      const repoPath = `assets/uploads/${safeName}`;
+      const publicUrl = `/${repoPath}`;
+      const buf = await file.arrayBuffer();
+      const b64 = arrayBufferToBase64(buf);
+      const ghToken = (localStorage.getItem("1arutyun_gh_token") || "").trim();
+
+      if (ghToken) {
+        try {
+          await pushFileToGithub(repoPath, b64, `Upload ${safeName}`);
+          const extraMedia = JSON.parse(localStorage.getItem("1arutyun_gh_uploaded_media") || "[]");
+          extraMedia.unshift({
+            name: safeName,
+            url: publicUrl,
+            type: file.type.startsWith("video/") ? "video" : "image",
+            deletable: false
+          });
+          localStorage.setItem("1arutyun_gh_uploaded_media", JSON.stringify(extraMedia));
+          lastUploadedUrl = publicUrl;
+        } catch (err) {
+          showToast(`Ошибка загрузки в GitHub: ${err.message}`);
+        }
+      } else if (file.type.startsWith("image/") && file.size <= 1500000) {
+        const dataUrl = `data:${file.type};base64,${b64}`;
+        lastUploadedUrl = dataUrl;
+      } else {
+        showToast("Для загрузки файлов на GitHub Pages укажите GitHub Token во вкладке «Темы»");
       }
     }
     await loadMediaLibrary();
-    showToast("Файл успешно загружен");
+    if (lastUploadedUrl) showToast("Файл успешно загружен");
     return lastUploadedUrl;
   }
 
@@ -1897,39 +2133,85 @@
       dot.textContent = "Сохранение...";
       dot.classList.add("is-saving");
     }
+
+    // Always persist draft in localStorage
     try {
-      const res = await fetch("/api/site", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${state.token}`
-        },
-        body: JSON.stringify(state.siteData)
-      });
-      if (res.ok) {
-        if (dot) {
-          dot.textContent = "Синхронизировано";
-          dot.classList.remove("is-saving");
-        }
-        const btn = document.getElementById("save-site-btn");
-        if (btn) {
-          btn.textContent = "✓ Сохранено";
-          btn.classList.add("is-saved");
-          clearTimeout(saveBtnResetTimer);
-          saveBtnResetTimer = setTimeout(() => {
-            btn.textContent = "Сохранить изменения";
-            btn.classList.remove("is-saved");
-          }, 1600);
-        }
-        if (!isSilent) {
-          showToast("✓ Все изменения сохранены на сайте!");
-        }
-      } else if (!isSilent) {
-        showToast("Ошибка сохранения: проверьте авторизацию");
+      localStorage.setItem("1arutyun_local_site_draft", JSON.stringify(state.siteData));
+    } catch (e) {}
+
+    const markSavedUi = (statusText = "Синхронизировано") => {
+      if (dot) {
+        dot.textContent = statusText;
+        dot.classList.remove("is-saving");
       }
-    } catch (e) {
+      const btn = document.getElementById("save-site-btn");
+      if (btn) {
+        btn.textContent = "✓ Сохранено";
+        btn.classList.add("is-saved");
+        clearTimeout(saveBtnResetTimer);
+        saveBtnResetTimer = setTimeout(() => {
+          btn.textContent = "Сохранить изменения";
+          btn.classList.remove("is-saved");
+        }, 1600);
+      }
+    };
+
+    if (!state.isStaticHost) {
+      try {
+        const res = await fetch(resolveUrl("/api/site"), {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${state.token}`
+          },
+          body: JSON.stringify(state.siteData)
+        });
+        const ct = (res.headers.get("content-type") || "").toLowerCase();
+        if (res.ok && ct.includes("application/json")) {
+          markSavedUi("Синхронизировано");
+          if (!isSilent) {
+            showToast("✓ Все изменения сохранены на сайте!");
+          }
+          return;
+        }
+        if (res.status === 404 || res.status === 405 || !ct.includes("application/json")) {
+          state.isStaticHost = true;
+        } else if (!isSilent) {
+          showToast("Ошибка сохранения: проверьте авторизацию");
+          return;
+        }
+      } catch (e) {
+        state.isStaticHost = true;
+      }
+    }
+
+    // Static / GitHub Pages mode
+    const ghToken = (localStorage.getItem("1arutyun_gh_token") || "").trim();
+    if (ghToken && !isSilent) {
+      try {
+        showToast("☁ Отправка изменений в GitHub Pages...");
+        const jsonStr = JSON.stringify(state.siteData, null, 2);
+        const defaultJsStr = `// Auto-generated fallback data synced with data/site.json\nwindow.DEFAULT_SITE_DATA = ${jsonStr};\n`;
+        await pushFileToGithub("data/site.json", utf8ToBase64(jsonStr), "Update data/site.json via 1arutyun Studio");
+        await pushFileToGithub("js/default-data.js", utf8ToBase64(defaultJsStr), "Sync js/default-data.js via 1arutyun Studio");
+        markSavedUi("Опубликовано в GitHub");
+        showToast("✓ Опубликовано в ваш репозиторий GitHub Pages!");
+      } catch (err) {
+        markSavedUi("Сохранено локально");
+        showToast(`Ошибка GitHub API: ${err.message}`);
+      }
+    } else {
+      markSavedUi(ghToken ? "Готово к публикации" : "Сохранено в браузере");
       if (!isSilent) {
-        showToast("Ошибка соединения с сервером");
+        // Open Themes tab & focus GitHub Token setup so user knows how to publish to GitHub Pages
+        const themesTab = document.querySelector(".drawer-tab[data-tab='themes']");
+        if (themesTab) themesTab.click();
+        const ghTokenInput = document.getElementById("gh-token-input");
+        if (ghTokenInput) {
+          ghTokenInput.scrollIntoView({ behavior: "smooth", block: "center" });
+          ghTokenInput.focus();
+        }
+        showToast("Сохранено в браузере! Для записи в GitHub Pages укажите GitHub Token справа или скачайте site.json.");
       }
     }
   }
@@ -2230,28 +2512,85 @@
      MAIN INITIALIZATION & EVENT LISTENERS
      ========================================================================== */
   async function initAdmin() {
-    // 1. Check Auth
+    // 1. Check Auth (supports both Node.js backend AND GitHub Pages static hosting!)
     const authOverlay = document.getElementById("auth-overlay");
     let authed = false;
     if (state.token) {
-      try {
-        const vRes = await fetch("/api/auth/verify", {
-          headers: { Authorization: `Bearer ${state.token}` }
-        });
-        if (vRes.ok) authed = true;
-      } catch (e) {}
+      if (state.token.startsWith("static_gh_session_")) {
+        state.isStaticHost = true;
+        authed = true;
+      } else {
+        try {
+          const vRes = await fetch(resolveUrl("/api/auth/verify"), {
+            headers: { Authorization: `Bearer ${state.token}` }
+          });
+          const ct = (vRes.headers.get("content-type") || "").toLowerCase();
+          if (vRes.ok && ct.includes("application/json")) {
+            authed = true;
+          } else if (vRes.status === 404 || vRes.status === 405 || !ct.includes("application/json")) {
+            state.isStaticHost = true;
+          }
+        } catch (e) {
+          state.isStaticHost = true;
+        }
+      }
     }
     if (authed && authOverlay) {
       authOverlay.classList.add("hidden");
     }
 
-    // 2. Load fresh site.json
-    try {
-      const sRes = await fetch("/api/site", { cache: "no-store" });
-      if (sRes.ok) {
-        state.siteData = await sRes.json();
+    // 2. Load fresh site.json (tries /api/site first, falls back to /data/site.json on GitHub Pages)
+    let siteLoaded = false;
+    if (!state.isStaticHost) {
+      try {
+        const sRes = await fetch(resolveUrl("/api/site"), { cache: "no-store" });
+        const ct = (sRes.headers.get("content-type") || "").toLowerCase();
+        if (sRes.ok && ct.includes("application/json")) {
+          state.siteData = await sRes.json();
+          siteLoaded = true;
+        } else {
+          state.isStaticHost = true;
+        }
+      } catch (e) {
+        state.isStaticHost = true;
       }
-    } catch (e) {}
+    }
+
+    if (!siteLoaded) {
+      try {
+        const jRes = await fetch(resolveUrl(`/data/site.json?t=${Date.now()}`), { cache: "no-store" });
+        if (jRes.ok) {
+          state.siteData = await jRes.json();
+          siteLoaded = true;
+        }
+      } catch (e) {}
+    }
+
+    if (state.isStaticHost) {
+      const localDraft = localStorage.getItem("1arutyun_local_site_draft");
+      if (localDraft) {
+        try {
+          state.siteData = JSON.parse(localDraft);
+        } catch (e) {}
+      }
+    }
+
+    // Populate GitHub Pages config inputs in Themes tab
+    const ghRepoIn = document.getElementById("gh-repo-input");
+    const ghBranchIn = document.getElementById("gh-branch-input");
+    const ghTokenIn = document.getElementById("gh-token-input");
+    if (ghRepoIn) ghRepoIn.value = detectDefaultGithubRepo();
+    if (ghBranchIn) ghBranchIn.value = localStorage.getItem("1arutyun_gh_branch") || "main";
+    if (ghTokenIn) ghTokenIn.value = localStorage.getItem("1arutyun_gh_token") || "";
+
+    document.getElementById("save-gh-config-btn")?.addEventListener("click", () => {
+      if (ghRepoIn) localStorage.setItem("1arutyun_gh_repo", ghRepoIn.value.trim());
+      if (ghBranchIn) localStorage.setItem("1arutyun_gh_branch", ghBranchIn.value.trim() || "main");
+      if (ghTokenIn) localStorage.setItem("1arutyun_gh_token", ghTokenIn.value.trim());
+      showToast("✓ Настройки GitHub сохранены! Нажмите «Сохранить изменения» для отправки на сайт.");
+    });
+
+    document.getElementById("download-site-json-btn")?.addEventListener("click", downloadSiteJson);
 
     renderInsertPalette();
     renderPagesNavigation();
@@ -2288,31 +2627,55 @@
       }
     });
 
-    // Login Form
+    // Login Form (Works on both Node.js server AND GitHub Pages static hosting!)
     const authForm = document.getElementById("auth-form");
     if (authForm) {
       authForm.addEventListener("submit", async (e) => {
         e.preventDefault();
-        const username = document.getElementById("auth-username").value;
+        const username = document.getElementById("auth-username").value.trim();
         const password = document.getElementById("auth-password").value;
         const errEl = document.getElementById("auth-error");
+        errEl.textContent = "";
+
+        if (!state.isStaticHost) {
+          try {
+            const res = await fetch(resolveUrl("/api/auth/login"), {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ username, password })
+            });
+            const ct = (res.headers.get("content-type") || "").toLowerCase();
+            if (ct.includes("application/json")) {
+              const data = await res.json();
+              if (res.ok && data.ok) {
+                state.token = data.token;
+                localStorage.setItem("1arutyun_admin_token", data.token);
+                authOverlay.classList.add("hidden");
+                errEl.textContent = "";
+              } else {
+                errEl.textContent = data.error || "Неверный логин или пароль";
+              }
+              return;
+            }
+            state.isStaticHost = true;
+          } catch (err) {
+            state.isStaticHost = true;
+          }
+        }
+
+        // Static / GitHub Pages browser-side cryptographic login verification
         try {
-          const res = await fetch("/api/auth/login", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ username, password })
-          });
-          const data = await res.json();
-          if (res.ok && data.ok) {
-            state.token = data.token;
-            localStorage.setItem("1arutyun_admin_token", data.token);
+          const valid = await verifyStaticLogin(username, password);
+          if (valid) {
+            state.token = `static_gh_session_${Date.now()}`;
+            localStorage.setItem("1arutyun_admin_token", state.token);
             authOverlay.classList.add("hidden");
             errEl.textContent = "";
           } else {
-            errEl.textContent = data.error || "Неверный логин или пароль";
+            errEl.textContent = "Неверный логин или пароль";
           }
         } catch (err) {
-          errEl.textContent = "Ошибка соединения";
+          errEl.textContent = "Ошибка проверки пароля в браузере";
         }
       });
     }
@@ -2906,14 +3269,25 @@
       const delMediaBtn = e.target.closest("[data-delete-media]");
       if (delMediaBtn) {
         const url = delMediaBtn.getAttribute("data-delete-media");
-        await fetch("/api/media", {
-          method: "DELETE",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${state.token}`
-          },
-          body: JSON.stringify({ url })
-        });
+        try {
+          const res = await fetch("/api/media", {
+            method: "DELETE",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${state.token}`
+            },
+            body: JSON.stringify({ url })
+          });
+          if (!res.ok) throw new Error("Static mode");
+        } catch {
+          try {
+            const customMedia = JSON.parse(localStorage.getItem("1arutyun_custom_media") || "[]");
+            localStorage.setItem(
+              "1arutyun_custom_media",
+              JSON.stringify(customMedia.filter((m) => m.url !== url))
+            );
+          } catch {}
+        }
         await loadMediaLibrary();
         return;
       }
@@ -2922,22 +3296,84 @@
       if (e.target.closest("#update-credentials-btn")) {
         const newUsername = document.getElementById("sec-new-login")?.value.trim();
         const newPassword = document.getElementById("sec-new-pass")?.value;
-        const res = await fetch("/api/auth/change-credentials", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${state.token}`
-          },
-          body: JSON.stringify({ newUsername, newPassword })
-        });
-        const data = await res.json();
-        if (res.ok && data.ok) {
-          state.token = data.token;
-          localStorage.setItem("1arutyun_admin_token", data.token);
-          showToast("Логин и пароль успешно обновлены");
-        } else {
-          showToast(data.error || "Ошибка смены пароля");
+        if (!newUsername || !newPassword || newPassword.length < 4) {
+          showToast("Введите логин и пароль (минимум 4 символа)");
+          return;
         }
+        try {
+          const res = await fetch("/api/auth/change-credentials", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${state.token}`
+            },
+            body: JSON.stringify({ newUsername, newPassword })
+          });
+          const ct = res.headers.get("content-type") || "";
+          if (ct.includes("application/json")) {
+            const data = await res.json();
+            if (res.ok && data.ok) {
+              state.token = data.token;
+              localStorage.setItem("1arutyun_admin_token", data.token);
+              showToast("Логин и пароль успешно обновлены");
+              return;
+            } else if (data.error) {
+              showToast(data.error);
+              return;
+            }
+          }
+        } catch {}
+
+        // Static / GitHub Pages fallback for updating credentials
+        const saltBytes = new Uint8Array(16);
+        window.crypto.getRandomValues(saltBytes);
+        const salt = Array.from(saltBytes)
+          .map((b) => b.toString(16).padStart(2, "0"))
+          .join("");
+        const passwordHash = await hmacSha256Hex(salt, newPassword);
+        const newAuth = { username: newUsername, salt, passwordHash };
+        localStorage.setItem("1arutyun_local_auth_override", JSON.stringify(newAuth));
+
+        const ghToken = (localStorage.getItem("1arutyun_gh_token") || "").trim();
+        const ghRepo = (localStorage.getItem("1arutyun_gh_repo") || detectDefaultGithubRepo()).trim();
+        const ghBranch = (localStorage.getItem("1arutyun_gh_branch") || "main").trim();
+        if (ghToken && ghRepo) {
+          try {
+            const apiUrl = `https://api.github.com/repos/${ghRepo}/contents/data/auth.json`;
+            const getRes = await fetch(`${apiUrl}?ref=${encodeURIComponent(ghBranch)}`, {
+              headers: {
+                Authorization: `Bearer ${ghToken}`,
+                Accept: "application/vnd.github+json"
+              }
+            });
+            let sha = undefined;
+            if (getRes.ok) {
+              const info = await getRes.json();
+              sha = info.sha;
+            }
+            const jsonText = JSON.stringify(newAuth, null, 2);
+            const bytes = new TextEncoder().encode(jsonText);
+            let binary = "";
+            for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+            await fetch(apiUrl, {
+              method: "PUT",
+              headers: {
+                Authorization: `Bearer ${ghToken}`,
+                Accept: "application/vnd.github+json",
+                "Content-Type": "application/json"
+              },
+              body: JSON.stringify({
+                message: "Update admin credentials via Studio",
+                content: btoa(binary),
+                branch: ghBranch,
+                ...(sha ? { sha } : {})
+              })
+            });
+            showToast("Логин и пароль обновлены и сохранены в GitHub!");
+            return;
+          } catch {}
+        }
+        showToast("Логин и пароль сохранены в этом браузере");
       }
     });
 

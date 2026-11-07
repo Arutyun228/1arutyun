@@ -10,22 +10,22 @@ window.DEFAULT_SITE_DATA = {
       "body": "'Bitter', Georgia, serif"
     },
     "lightColors": {
-      "bg": "#f6f8f5",
-      "text": "#1c241e",
-      "muted": "#556358",
-      "accent": "#2d4732",
-      "btnBg": "#2d4732",
+      "bg": "#ffffff",
+      "text": "#212121",
+      "muted": "#5f5f5f",
+      "accent": "#212121",
+      "btnBg": "#212121",
       "btnText": "#ffffff",
-      "line": "#d5dfd7"
+      "line": "#dcdcdc"
     },
     "darkColors": {
-      "bg": "#131915",
-      "text": "#e9f0eb",
-      "muted": "#92a396",
-      "accent": "#88b391",
-      "btnBg": "#e9f0eb",
-      "btnText": "#131915",
-      "line": "#2b382e"
+      "bg": "#161618",
+      "text": "#f2f2f2",
+      "muted": "#a0a0a5",
+      "accent": "#f2f2f2",
+      "btnBg": "#f2f2f2",
+      "btnText": "#161618",
+      "line": "#2e2e33"
     }
   },
   "profile": {
@@ -52,8 +52,8 @@ window.DEFAULT_SITE_DATA = {
       "visible": true,
       "fullBleed": true,
       "noImage": false,
-      "height": 133,
-      "image": "/assets/uploads/1794016038084-armeniya.jpg",
+      "height": 230,
+      "image": "/assets/header_banner.jpg",
       "overlayOpacity": 0.18,
       "title": {
         "en": "1arutyun",
@@ -84,12 +84,12 @@ window.DEFAULT_SITE_DATA = {
         "ru": "Undefined."
       },
       "subtitle": {
-        "en": "<span style=\"font-style:normal;\">Latest Release - 08/13/2026</span>",
-        "ru": "<span style=\"font-style:normal;\">Latest Release - 08/13/2026</span>"
+        "en": "Latest Release - 08/13/2026",
+        "ru": "Latest Release - 08/13/2026"
       },
       "text": {
-        "en": "My name is Harutyun. I’m not a musician. I’m not an artist.\nI just love getting lost in creation, riding the waves of a boundless ocean of emotions and passions. Left completely alone, I find myself face-to-face with my greatest enemy and my most precious treasure: myself. In those moments, I am driven by a single desire to create.\nSee you in 5 years at my solo concert!\nThank you for giving your time and attention to my humble work. ✨",
-        "ru": "My name is Harutyun. I’m not a musician. I’m not an artist.\nI just love getting lost in creation, riding the waves of a boundless ocean of emotions and passions. Left completely alone, I find myself face-to-face with my greatest enemy and my most precious treasure: myself. In those moments, I am driven by a single desire to create.\nSee you in 5 years at my solo concert!\nThank you for giving your time and attention to my humble work. ✨"
+        "en": "My name is Harutyun. I’m not a musician. I’m not an artist.\n\nI just love getting lost in creation, riding the waves of a boundless ocean of emotions and passions. Left completely alone, I find myself face-to-face with my greatest enemy and my most precious treasure: myself. In those moments, I am driven by a single desire to create.\n\nSee you in 5 years at my solo concert!\n\nThank you for giving your time and attention to my humble work. ✨",
+        "ru": "My name is Harutyun. I’m not a musician. I’m not an artist.\n\nI just love getting lost in creation, riding the waves of a boundless ocean of emotions and passions. Left completely alone, I find myself face-to-face with my greatest enemy and my most precious treasure: myself. In those moments, I am driven by a single desire to create.\n\nSee you in 5 years at my solo concert!\n\nThank you for giving your time and attention to my humble work. ✨"
       },
       "buttonText": {
         "en": "Listen / Open Release →",
@@ -115,8 +115,7 @@ window.DEFAULT_SITE_DATA = {
       "padY": 32,
       "bgColor": "transparent",
       "visible": true,
-      "fullBleed": false,
-      "textColor": ""
+      "fullBleed": false
     },
     {
       "id": "block-socials",
@@ -212,8 +211,8 @@ window.DEFAULT_SITE_DATA = {
       ],
       "extraBlocks": [],
       "featuredText": {
-        "en": "My name is Harutyun. I’m not a musician. I’m not an artist.\nI just love getting lost in creation, riding the waves of a boundless ocean of emotions and passions. Left completely alone, I find myself face-to-face with my greatest enemy and my most precious treasure: myself. In those moments, I am driven by a single desire to create.\nSee you in 5 years at my solo concert!\nThank you for giving your time and attention to my humble work. ✨",
-        "ru": "My name is Harutyun. I’m not a musician. I’m not an artist.\nI just love getting lost in creation, riding the waves of a boundless ocean of emotions and passions. Left completely alone, I find myself face-to-face with my greatest enemy and my most precious treasure: myself. In those moments, I am driven by a single desire to create.\nSee you in 5 years at my solo concert!\nThank you for giving your time and attention to my humble work. ✨"
+        "en": "My name is Harutyun. I’m not a musician. I’m not an artist.\n\nI just love getting lost in creation, riding the waves of a boundless ocean of emotions and passions. Left completely alone, I find myself face-to-face with my greatest enemy and my most precious treasure: myself. In those moments, I am driven by a single desire to create.\n\nSee you in 5 years at my solo concert!\n\nThank you for giving your time and attention to my humble work. ✨",
+        "ru": "My name is Harutyun. I’m not a musician. I’m not an artist.\n\nI just love getting lost in creation, riding the waves of a boundless ocean of emotions and passions. Left completely alone, I find myself face-to-face with my greatest enemy and my most precious treasure: myself. In those moments, I am driven by a single desire to create.\n\nSee you in 5 years at my solo concert!\n\nThank you for giving your time and attention to my humble work. ✨"
       }
     }
   ],
