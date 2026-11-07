@@ -1,9 +1,0 @@
-{
-  "name": "1arutyun-official-site",
-  "version": "2.0.0",
-  "description": "Personal musician website & CMS builder for 1arutyun",
-  "main": "server.js",
-  "scripts": {
-    "start": "node server.js"
-  }
-}
