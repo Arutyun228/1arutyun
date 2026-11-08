@@ -52,7 +52,7 @@ window.DEFAULT_SITE_DATA = {
       "visible": true,
       "fullBleed": true,
       "noImage": true,
-      "height": 230,
+      "height": 120,
       "image": "/assets/header_banner.jpg",
       "overlayOpacity": 0.18,
       "title": {
