@@ -29,7 +29,7 @@ window.DEFAULT_SITE_DATA = {
     }
   },
   "profile": {
-    "artistName": "",
+    "artistName": "1arutyun",
     "avatar": "/assets/logo_or_avatar.jpg",
     "portrait": "/assets/art_photo.jpg",
     "bannerImage": "/assets/header_banner.jpg",
