@@ -29,7 +29,7 @@ window.DEFAULT_SITE_DATA = {
     }
   },
   "profile": {
-    "artistName": "1arutyun",
+    "artistName": "",
     "avatar": "/assets/logo_or_avatar.jpg",
     "portrait": "/assets/art_photo.jpg",
     "bannerImage": "/assets/header_banner.jpg",
@@ -88,8 +88,8 @@ window.DEFAULT_SITE_DATA = {
         "ru": "Latest Release - 08/13/2026"
       },
       "text": {
-        "en": "My name is Harutyun. I’m not a musician. I’m not an artist.\n\nI just love getting lost in creation, riding the waves of a boundless ocean of emotions and passions. Left completely alone, I find myself face-to-face with my greatest enemy and my most precious treasure: myself. In those moments, I am driven by a single desire to create.\n\nSee you in 5 years at my solo concert!\n\nThank you for giving your time and attention to my humble work. ✨",
-        "ru": "My name is Harutyun. I’m not a musician. I’m not an artist.\n\nI just love getting lost in creation, riding the waves of a boundless ocean of emotions and passions. Left completely alone, I find myself face-to-face with my greatest enemy and my most precious treasure: myself. In those moments, I am driven by a single desire to create.\n\nSee you in 5 years at my solo concert!\n\nThank you for giving your time and attention to my humble work. ✨"
+        "en": "My name is Հարություն.\nI just love getting lost in creation, riding the waves of a boundless ocean of emotions and passions. Left completely alone, I find myself face-to-face with my greatest enemy and my most precious treasure: myself. In those moments, I am driven by a single desire to create.\nSee you in 5 years at my solo concert!\n<i>Thank you for giving your time and attention to my humble work. </i>✨",
+        "ru": "My name is Հարություն.\nI just love getting lost in creation, riding the waves of a boundless ocean of emotions and passions. Left completely alone, I find myself face-to-face with my greatest enemy and my most precious treasure: myself. In those moments, I am driven by a single desire to create.\nSee you in 5 years at my solo concert!\n<i>Thank you for giving your time and attention to my humble work. </i>✨"
       },
       "buttonText": {
         "en": "Listen / Open Release →",
@@ -97,23 +97,6 @@ window.DEFAULT_SITE_DATA = {
       },
       "bgColor": "transparent",
       "textColor": "",
-      "visible": true,
-      "fullBleed": false
-    },
-    {
-      "id": "block-next-release",
-      "type": "framed-quote",
-      "text": {
-        "en": "“The next release will be available on all platforms at the end of September! Stay tuned and subscribe so you don't miss it.”",
-        "ru": "“The next release will be available on all platforms at the end of September! Stay tuned and subscribe so you don't miss it.”"
-      },
-      "subtitle": {
-        "en": "UPCOMING RELEASE",
-        "ru": "UPCOMING RELEASE"
-      },
-      "widthPct": 80,
-      "padY": 32,
-      "bgColor": "transparent",
       "visible": true,
       "fullBleed": false
     },
@@ -211,8 +194,8 @@ window.DEFAULT_SITE_DATA = {
       ],
       "extraBlocks": [],
       "featuredText": {
-        "en": "My name is Harutyun. I’m not a musician. I’m not an artist.\n\nI just love getting lost in creation, riding the waves of a boundless ocean of emotions and passions. Left completely alone, I find myself face-to-face with my greatest enemy and my most precious treasure: myself. In those moments, I am driven by a single desire to create.\n\nSee you in 5 years at my solo concert!\n\nThank you for giving your time and attention to my humble work. ✨",
-        "ru": "My name is Harutyun. I’m not a musician. I’m not an artist.\n\nI just love getting lost in creation, riding the waves of a boundless ocean of emotions and passions. Left completely alone, I find myself face-to-face with my greatest enemy and my most precious treasure: myself. In those moments, I am driven by a single desire to create.\n\nSee you in 5 years at my solo concert!\n\nThank you for giving your time and attention to my humble work. ✨"
+        "en": "My name is Հարություն.\nI just love getting lost in creation, riding the waves of a boundless ocean of emotions and passions. Left completely alone, I find myself face-to-face with my greatest enemy and my most precious treasure: myself. In those moments, I am driven by a single desire to create.\nSee you in 5 years at my solo concert!\n<i>Thank you for giving your time and attention to my humble work. </i>✨",
+        "ru": "My name is Հարություն.\nI just love getting lost in creation, riding the waves of a boundless ocean of emotions and passions. Left completely alone, I find myself face-to-face with my greatest enemy and my most precious treasure: myself. In those moments, I am driven by a single desire to create.\nSee you in 5 years at my solo concert!\n<i>Thank you for giving your time and attention to my humble work. </i>✨"
       }
     }
   ],
