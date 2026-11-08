@@ -47,11 +47,11 @@ window.DEFAULT_SITE_DATA = {
       "widthPct": 100,
       "padY": 0,
       "shape": "sharp",
-      "bgColor": "#000000",
+      "bgColor": "transparent",
       "textColor": "",
       "visible": true,
       "fullBleed": true,
-      "noImage": false,
+      "noImage": true,
       "height": 230,
       "image": "/assets/header_banner.jpg",
       "overlayOpacity": 0.18,
@@ -60,8 +60,8 @@ window.DEFAULT_SITE_DATA = {
         "ru": "1arutyun"
       },
       "subtitle": {
-        "en": "",
-        "ru": ""
+        "en": "c",
+        "ru": "c"
       }
     },
     {
