@@ -267,22 +267,6 @@
       "mediaType": "image",
       "mediaUrl": "/assets/undefined_album_cover.jpg",
       "reactions": 48
-    },
-    {
-      "id": "post-2",
-      "date": "2026-08-24T21:30:00.000Z",
-      "pinned": false,
-      "title": {
-        "en": "Thoughts in the quiet",
-        "ru": "Thoughts in the quiet"
-      },
-      "text": {
-        "en": "Left completely alone, I find myself face-to-face with my greatest enemy and my most precious treasure: myself. In those moments, I am driven by a single desire to create.\n\nSee you in 5 years at my solo concert!",
-        "ru": "Left completely alone, I find myself face-to-face with my greatest enemy and my most precious treasure: myself. In those moments, I am driven by a single desire to create.\n\nSee you in 5 years at my solo concert!"
-      },
-      "mediaType": "image",
-      "mediaUrl": "/assets/art_photo.jpg",
-      "reactions": 35
     }
   ]
 }
